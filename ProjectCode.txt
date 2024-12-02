@@ -1,0 +1,64 @@
+//EE490 Project (Non cloud code)
+#include <ESP32Servo.h>
+#include "DHT20.h"
+
+DHT20 DHT;
+Servo gauge;
+
+float temp = 54;
+float percent;
+float mult;
+int pos = 0;        //Servo initial position
+int servoPin = 32;  //Servo pin
+
+void setup() 
+{
+  ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1);
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
+  gauge.setPeriodHertz(50);           //50Hz servo
+  gauge.attach(servoPin, 600, 3000);  //Servo min max
+
+  Serial.begin(115200);
+  Wire.begin();
+  DHT.begin();    //ESP32 default pins 21 22
+  delay(1000);
+}
+
+void loop() 
+{
+  //Read in temperature
+  int status = DHT.read();
+  temp = DHT.getTemperature();
+
+  //Print Temp
+  Serial.print(DHT.getTemperature(), 1);
+  Serial.print("\n");
+
+  //Check temp is within gauge limits
+  if (temp < 26)
+  {
+    temp = 26;
+  }
+  if (temp > 60)
+  {
+    temp = 60;
+  }
+
+  //Finds what percent temp is at in scale
+  percent = ((temp - 26)/(60-26)) * 100; //Temp range from 26 to 60
+
+  //Finds multiplier of same percent
+  mult = (((percent * 2.863)/100) + 0.004); //Multiplier range from 0.004 to 2.863
+
+  //Uses multiplier to find servo position
+  pos = temp * mult;
+
+  //Flip servo input (servo is upside down)
+  pos = abs(pos - 180);
+
+  //Sets servo gauge and waits 10 seconds
+  gauge.write(pos);                    
+  delay(10000);                        
+}
